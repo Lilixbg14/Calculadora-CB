@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Rendimiento</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a5f">
+    <style>
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background: linear-gradient(135deg, #1e3a5f, #2d5a87); min-height: 100vh; margin: 0; padding: 20px; }
+        .contenedor { max-width: 400px; margin: 0 auto; background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); color: #333; }
+        h1 { text-align: center; color: #1e3a5f; margin-top: 0; font-size: 20px; }
+        .campo { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; }
+        input { width: 100%; padding: 12px; border: 2px solid #ccc; border-radius: 8px; font-size: 16px; }
+        input:focus { outline: none; border-color: #2d5a87; }
+        button { width: 100%; background: linear-gradient(135deg, #1e3a5f, #2d5a87); color: white; border: none; padding: 14px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 8px; }
+        button:hover { opacity: 0.9; }
+        .btn-limpiar { background: #6c757d; padding: 10px; font-size: 14px; margin-top: 10px; }
+        .resultado { margin-top: 20px; padding: 15px; background: #e8f4fd; border-radius: 8px; display: none; }
+        .resultado.mostrar { display: block; }
+        .dato { padding: 8px 0; border-bottom: 1px solid #cce4f7; }
+        .dato:last-child { border-bottom: none; }
+        .valor { font-weight: bold; color: #1e3a5f; font-size: 18px; }
+        .rendimiento { font-size: 22px; font-weight: bold; text-align: center; margin-top: 10px; padding: 10px; border-radius: 6px; }
+        .rendimiento.normal { color: #006633; background: #e6f9e6; }
+        .rendimiento.bajo { color: #cc0000; background: #ffe6e6; }
+        .alerta { text-align: center; font-size: 14px; margin-top: 8px; font-weight: bold; }
+        .alerta.bajo { color: #cc0000; }
+        .alerta.normal { color: #006633; }
+        .historial-seccion { margin-top: 25px; border-top: 2px dashed #ccc; padding-top: 15px; }
+        .historial-titulo { font-size: 16px; color: #1e3a5f; font-weight: bold; margin-bottom: 10px; text-align: center; }
+        .lista-historial { max-height: 200px; overflow-y: auto; padding: 0; margin: 0; list-style: none; }
+        .item-historial { background: #f8f9fa; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #1e3a5f; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .item-historial.bajo { border-left-color: #cc0000; }
+        .item-historial.normal { border-left-color: #006633; }
+        .btn-borrar-historial { background: #dc3545; padding: 6px; font-size: 12px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <h1>⛽ Calculadora de Rendimiento</h1>
+        <div class="campo">
+            <label>Límite mínimo aceptable (km/L):</label>
+            <input type="number" id="limite" placeholder="Límite" step="0.01" value="3">
+        </div>
+        <div class="campo">
+            <label>Odómetro anterior (km):</label>
+            <input type="number" id="anterior" placeholder="Ej. 12500" step="0.01">
+        </div>
+        <div class="campo">
+            <label>Odómetro actual (km):</label>
+            <input type="number" id="actual" placeholder="Ej. 13200" step="0.01">
+        </div>
+        <div class="campo">
+            <label>Litros cargados:</label>
+            <input type="number" id="litros" placeholder="Ej. 50" step="0.01">
+        </div>
+        <button onclick="calcular()">✅ Calcular y Guardar</button>
+        <button class="btn-limpiar" onclick="limpiar()">🔄 Limpiar Campos</button>
+        <div class="resultado" id="resultado">
+            <div class="dato"> Distancia recorrida: <span class="valor" id="distancia">0</span> km </div>
+            <div class="dato"> Consumo: <span class="valor" id="consumo">0</span> litros </div>
+            <div class="rendimiento" id="cajaRendimiento"> Rendimiento:<br> <span id="rendimiento">0</span> km/L </div>
+            <div class="alerta" id="alerta"></div>
+        </div>
+        <div class="historial-seccion">
+            <div class="historial-titulo">📊 Historial de Cargas</div>
+            <ul id="listaHistorial" class="lista-historial"></ul>
+            <button class="btn-borrar-historial" onclick="borrarHistorial()">🗑️ Borrar Historial</button>
+        </div>
+    </div>
+    <script>
+        window.addEventListener('load', () => {
+            cargarHistorial();
+            sugerirOdometroAnterior();
+        });
+
+        function calcular() {
+            const limite = parseFloat(document.getElementById('limite').value) || 0;
+            const anterior = parseFloat(document.getElementById('anterior').value) || 0;
+            const actual = parseFloat(document.getElementById('actual').value) || 0;
+            const litros = parseFloat(document.getElementById('litros').value) || 0;
+            const distancia = actual - anterior;
+
+            if (distancia <= 0 || litros <= 0) {
+                alert('Por favor, ingresa valores válidos (el odómetro actual debe ser mayor al anterior y los litros mayores a cero).');
+                return;
+            }
+
+            const kmPorLitro = distancia / litros;
+            document.getElementById('distancia').textContent = distancia.toFixed(2);
+            document.getElementById('consumo').textContent = litros.toFixed(2);
+            document.getElementById('rendimiento').textContent = kmPorLitro.toFixed(2);
+
+            const cajaRendimiento = document.getElementById('cajaRendimiento');
+            const alerta = document.getElementById('alerta');
+            cajaRendimiento.classList.remove('normal', 'bajo');
+            alerta.classList.remove('normal', 'bajo');
+
+            let estado = 'normal';
+            if (kmPorLitro >= limite) {
+                cajaRendimiento.classList.add('normal');
+                alerta.className = 'alerta normal';
+                alerta.textContent = '¡Rendimiento óptimo!';
+                estado = 'normal';
+            } else {
+                cajaRendimiento.classList.add('bajo');
+                alerta.className = 'alerta bajo';
+                alerta.textContent = 'Alerta: Rendimiento por debajo del límite';
+                estado = 'bajo';
+            }
+            document.getElementById('resultado').classList.add('mostrar');
+            guardarRegistro(actual, distancia, litros, kmPorLitro, estado);
+        }
+
+        function guardarRegistro(odometro, km, litros, rendimiento, estado) {
+            let historial = JSON.parse(localStorage.getItem('historial_combustible')) || [];
+            const nuevoRegistro = {
+                fecha: new Date().toLocaleDateString(),
+                odometro: odometro.toFixed(2),
+                km: km.toFixed(2),
+                litros: litros.toFixed(2),
+                rendimiento: rendimiento.toFixed(2),
+                estado: estado
+            };
+            historial.unshift(nuevoRegistro);
+            localStorage.setItem('historial_combustible', JSON.stringify(historial));
+            cargarHistorial();
+        }
+
+        function cargarHistorial() {
+            const lista = document.getElementById('listaHistorial');
+            lista.innerHTML = '';
+            let historial = JSON.parse(localStorage.getItem('historial_combustible')) || [];
+
+            if (historial.length === 0) {
+                lista.innerHTML = '<li style="text-align:center;color:#666;font-size:12px;padding:10px;">No hay registros guardados.</li>';
+                return;
+            }
+
+            historial.forEach(reg => {
+                const li = document.createElement('li');
+                li.className = item-historial ${reg.estado};
+                li.innerHTML = `
+                    <div>
+                        <strong>${reg.fecha}</strong> - Odo: ${reg.odometro} km<br>
+                        Recorrido: ${reg.km} km | Litros: ${reg.litros} L
+                    </div>
+                    <div style="text-align:right; font-weight:bold; font-size:14px;">
+                        ${reg.rendimiento}<br><span style="font-size:10px;">km/L</span>
+                    </div>
+                `;
+                lista.appendChild(li);
+            });
+        }
+
+        function sugerirOdometroAnterior() {
+            let historial = JSON.parse(localStorage.getItem('historial_combustible')) || [];
+            if (historial.length > 0) {
+                document.getElementById('anterior').value = historial[0].odometro;
+            }
+        }
+
+        function limpiar() {
+            document.getElementById('actual').value = '';
+            document.getElementById('litros').value = '';
+            document.getElementById('resultado').classList.remove('mostrar');
+            sugerirOdometroAnterior();
+        }
+
+        function borrarHistorial() {
+            if (confirm('¿Seguro que quieres borrar todo el historial? Esto no se puede deshacer.')) {
+                localStorage.removeItem('historial_combustible');
+                document.getElementById('anterior').value = '';
+                cargarHistorial();
+            }
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker activo'))
+                    .catch(err => console.error('Error con el Service Worker', err));
+            });
+        }
+    </script>
+</body>
+</html>
